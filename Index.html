@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fire AI Music Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        @keyframes ping {
+            75%, 100% { transform: scale(2); opacity: 0; }
+        }
+        .animate-ping-slow {
+            animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+        
+        /* Range Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none; 
+            background: transparent; 
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 transition-colors duration-300 overflow-hidden h-screen flex">
+
+    <!-- Mobile Overlay -->
+    <div id="mobile-overlay" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 hidden transition-opacity" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-64 border-r bg-white border-slate-200 transform -translate-x-full transition-transform duration-300 ease-in-out md:relative md:translate-x-0 flex flex-col">
+        <div class="p-6 h-full flex flex-col">
+            <div class="flex items-center justify-between mb-8">
+                <div class="flex items-center space-x-2.5">
+                    <div class="bg-gradient-to-br from-orange-400 to-red-600 p-2 rounded-xl text-white shadow-sm">
+                        <i data-lucide="flame" class="w-5 h-5 fill-current"></i>
+                    </div>
+                    <h1 class="text-xl font-bold tracking-tight">Fire AI</h1>
+                </div>
+                <button onclick="toggleSidebar()" class="md:hidden p-2 text-slate-400 hover:text-slate-600">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            
+            <nav class="space-y-1.5 flex-1" id="nav-container">
+                <!-- Nav items injected by JS -->
+            </nav>
+
+            <button onclick="switchTab('settings')" id="nav-settings" class="flex items-center space-x-3 w-full p-2.5 rounded-lg transition-all mb-4 text-slate-600 hover:bg-slate-100">
+                <i data-lucide="settings" class="w-[18px]"></i> <span class="text-sm font-medium">Settings</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        <!-- Header -->
+        <header id="main-header" class="h-16 flex items-center px-4 md:px-6 border-b sticky top-0 z-30 transition-colors duration-300 bg-white/80 border-slate-200 backdrop-blur-md">
+            <button onclick="toggleSidebar()" class="p-2 mr-2 rounded-lg md:hidden text-slate-600 hover:bg-slate-100 transition-colors">
+                <i data-lucide="menu" class="w-[22px]"></i>
+            </button>
+            
+            <div class="flex-1 max-w-xl">
+                <div class="relative">
+                    <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4"></i>
+                    <input
+                        type="text"
+                        id="global-search-input"
+                        placeholder="Find tracks..."
+                        class="w-full pl-9 pr-10 py-1.5 md:py-2 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500/20 transition-all bg-slate-100 border-transparent text-slate-900"
+                    />
+                </div>
+            </div>
+            <div class="ml-auto flex items-center space-x-1">
+                 <button onclick="toggleDarkMode()" id="theme-toggle" class="p-2 rounded-full transition-colors hover:bg-slate-100 text-slate-500">
+                   <i data-lucide="moon" class="w-5 h-5"></i>
+                 </button>
+            </div>
+        </header>
+
+        <!-- Content Area -->
+        <div id="content-area" class="flex-1 overflow-y-auto p-4 md:p-6 pb-32">
+            <!-- Dynamic Content Injected Here -->
+        </div>
+
+        <!-- Player Bar -->
+        <div id="player-bar" class="fixed bottom-4 left-4 right-4 md:bottom-6 md:left-72 md:right-8 p-3 rounded-2xl flex items-center justify-between z-50 shadow-2xl transition-all duration-500 border bg-white border-slate-100 text-slate-900 hidden translate-y-20 opacity-0">
+            <div class="absolute top-0 left-6 right-6 h-0.5 bg-slate-100/10 rounded-full overflow-hidden">
+                <div id="progress-bar" class="h-full bg-orange-500 transition-all duration-300" style="width: 0%"></div>
+            </div>
+            <div class="flex items-center w-1/3 min-w-0">
+                <img id="player-artwork" src="" class="w-9 h-9 rounded-lg mr-2 md:mr-3 object-cover shadow-sm bg-slate-200" alt="" />
+                <div class="min-w-0">
+                    <p id="player-title" class="text-[11px] md:text-xs font-semibold truncate">Title</p>
+                    <p id="player-artist" class="text-[9px] md:text-[10px] text-slate-400 truncate font-medium">Artist</p>
+                </div>
+            </div>
+            <div class="flex items-center">
+                <button id="play-pause-btn" onclick="togglePlay()" class="p-2 md:p-2.5 rounded-full hover:scale-105 transition-transform active:scale-95 shadow-sm bg-orange-500 text-white">
+                    <i data-lucide="play" class="w-[18px] fill-current ml-0.5"></i>
+                </button>
+            </div>
+            <div class="w-1/3 flex justify-end items-center space-x-1 md:space-x-3">
+                <a id="player-youtube-link" href="#" target="_blank" rel="noopener noreferrer" class="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-red-500 transition-all hidden sm:block">
+                    <i data-lucide="youtube" class="w-[18px]"></i>
+                </a>
+                <button onclick="closePlayer()" class="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+                    <i data-lucide="x" class="w-[18px] text-slate-400"></i>
+                </button>
+            </div>
+        </div>
+        
+        <audio id="audio-element"></audio>
+    </main>
+
+    <!-- Templates -->
+    <template id="loader-template">
+        <div class="h-64 flex flex-col items-center justify-center space-y-4">
+            <div class="w-10 h-10 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin"></div>
+            <p class="text-xs font-medium text-slate-400 message">Loading...</p>
+        </div>
+    </template>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        import { getFirestore, collection, addDoc, onSnapshot, query, serverTimestamp, deleteDoc, doc, getDocs, writeBatch } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+
+        // --- Configuration ---
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'fire-ai-v1';
+        
+        // --- State ---
+        let state = {
+            user: null,
+            activeTab: 'newreleases',
+            searchQuery: '',
+            searchResults: [],
+            newReleases: [],
+            forYouSongs: [],
+            history: [],
+            currentTrack: null,
+            isPlaying: false,
+            isSidebarOpen: false,
+            darkMode: false,
+            isListening: false,
+            detectedNote: '--',
+            detectedPitch: 0
+        };
+
+        const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        let audioContext = null;
+        let analyser = null;
+        let animationFrameId = null;
+        let melodyBuffer = [];
+        
+        const audioElement = document.getElementById('audio-element');
+
+        // --- Auth & Init ---
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (err) {
+                console.error("Auth failed:", err);
+            }
+        };
+        initAuth();
+
+        onAuthStateChanged(auth, (u) => {
+            state.user = u;
+            if (u) setupHistoryListener(u);
+        });
+
+        // --- Data Fetching ---
+        async function fetchNewReleases() {
+            renderView(); // Show loader
+            try {
+                const cacheBuster = new Date().getTime();
+                const response = await fetch(`https://itunes.apple.com/us/rss/topsongs/limit=24/json?cb=${cacheBuster}`);
+                const data = await response.json();
+                state.newReleases = data.feed.entry.map(entry => ({
+                    id: entry.id.attributes['im:id'],
+                    title: entry['im:name'].label,
+                    artist: entry['im:artist'].label,
+                    artwork: entry['im:image'][2].label,
+                    previewUrl: entry.link[1]?.attributes.href
+                }));
+            } catch (err) {
+                console.error("Failed to fetch new releases", err);
+            }
+            renderView();
+        }
+
+        function setupHistoryListener(user) {
+            const q = collection(db, 'artifacts', appId, 'users', user.uid, 'history');
+            onSnapshot(q, (snapshot) => {
+                const docs = snapshot.docs.map(d => ({ docId: d.id, ...d.data() }));
+                // Simple dedup and sort
+                const uniqueHistory = [];
+                const seenIds = new Set();
+                docs.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0)).forEach(item => {
+                    if (!seenIds.has(item.id)) {
+                        seenIds.add(item.id);
+                        uniqueHistory.push(item);
+                    }
+                });
+                state.history = uniqueHistory;
+                generateRecommendations();
+                if(state.activeTab === 'history') renderView();
+            }, (err) => console.error(err));
+        }
+
+        async function generateRecommendations() {
+            if (state.history.length > 0) {
+                const artists = state.history.map(h => h.artist);
+                // Find mode
+                const modeArtist = artists.sort((a,b) =>
+                    artists.filter(v => v === a).length - artists.filter(v => v === b).length
+                ).pop();
+
+                try {
+                    const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(modeArtist)}&entity=song&limit=8`);
+                    const data = await response.json();
+                    state.forYouSongs = data.results.map(item => ({
+                        id: item.trackId.toString(),
+                        title: item.trackName,
+                        artist: item.artistName,
+                        artwork: item.artworkUrl100.replace('100x100', '400x400'),
+                        previewUrl: item.previewUrl
+                    }));
+                } catch (err) { console.error(err); }
+            } else {
+                state.forYouSongs = state.newReleases.slice(0, 8);
+            }
+            if(state.activeTab === 'foryou') renderView();
+        }
+
+        window.performSearch = async (term) => {
+            if (!term.trim()) return;
+            switchTab('search');
+            // Show loading state manually in view
+            document.getElementById('content-area').innerHTML = document.getElementById('loader-template').innerHTML.replace('Loading...', 'Igniting search results...');
+            
+            try {
+                const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&entity=song&limit=20`);
+                const data = await response.json();
+                state.searchResults = data.results.map(item => ({
+                    id: item.trackId.toString(),
+                    title: item.trackName,
+                    artist: item.artistName,
+                    album: item.collectionName,
+                    artwork: item.artworkUrl100.replace('100x100', '400x400'),
+                    previewUrl: item.previewUrl
+                }));
+            } catch (err) { console.error(err); }
+            renderView();
+        };
+
+        // --- Audio Logic ---
+        window.playTrack = (songString) => {
+            const song = JSON.parse(decodeURIComponent(songString));
+            
+            if (state.currentTrack?.id === song.id) {
+                togglePlay();
+                return;
+            }
+
+            state.currentTrack = song;
+            state.isPlaying = true;
+            audioElement.src = song.previewUrl;
+            audioElement.play().catch(e => console.log(e));
+            
+            updatePlayerUI();
+            renderView(); // Re-render to update play icons in list
+
+            // Add to history
+            if (state.user) {
+                addDoc(collection(db, 'artifacts', appId, 'users', state.user.uid, 'history'), {
+                    ...song,
+                    timestamp: serverTimestamp(),
+                    type: 'play'
+                });
+            }
+        };
+
+        window.togglePlay = () => {
+            if (audioElement.paused) {
+                audioElement.play();
+                state.isPlaying = true;
+            } else {
+                audioElement.pause();
+                state.isPlaying = false;
+            }
+            updatePlayerUI();
+            renderView();
+        };
+
+        window.closePlayer = () => {
+            audioElement.pause();
+            state.currentTrack = null;
+            state.isPlaying = false;
+            updatePlayerUI();
+            renderView();
+        };
+
+        audioElement.ontimeupdate = () => {
+            const progress = (audioElement.currentTime / audioElement.duration) * 100;
+            const bar = document.getElementById('progress-bar');
+            if(bar) bar.style.width = `${progress}%`;
+        };
+        
+        audioElement.onended = () => {
+            state.isPlaying = false;
+            updatePlayerUI();
+            renderView();
+        };
+
+        function updatePlayerUI() {
+            const bar = document.getElementById('player-bar');
+            const playBtn = document.getElementById('play-pause-btn');
+            
+            if (state.currentTrack) {
+                bar.classList.remove('hidden', 'translate-y-20', 'opacity-0');
+                
+                document.getElementById('player-artwork').src = state.currentTrack.artwork;
+                document.getElementById('player-title').textContent = state.currentTrack.title;
+                document.getElementById('player-artist').textContent = state.currentTrack.artist;
+                document.getElementById('player-youtube-link').href = `https://www.youtube.com/results?search_query=${encodeURIComponent(state.currentTrack.artist + ' ' + state.currentTrack.title)}`;
+                
+                playBtn.innerHTML = state.isPlaying 
+                    ? `<i data-lucide="pause" class="w-[18px] fill-current"></i>`
+                    : `<i data-lucide="play" class="w-[18px] fill-current ml-0.5"></i>`;
+                
+                // Refresh icons in player bar only
+                lucide.createIcons({ root: bar });
+            } else {
+                bar.classList.add('translate-y-20', 'opacity-0');
+                setTimeout(() => bar.classList.add('hidden'), 500);
+            }
+        }
+
+        // --- Melody Ignite (Pitch Detection) ---
+        window.toggleListening = async () => {
+            if (state.isListening) {
+                stopListening();
+            } else {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    analyser = audioContext.createAnalyser();
+                    analyser.fftSize = 2048;
+                    const source = audioContext.createMediaStreamSource(stream);
+                    source.connect(analyser);
+                    
+                    melodyBuffer = [];
+                    state.isListening = true;
+                    renderView();
+                    updatePitch();
+                    
+                    setTimeout(() => stopListening(true), 6000);
+                } catch (err) {
+                    console.error("Mic error:", err);
+                    alert("Microphone access denied.");
+                }
+            }
+        };
+
+        function stopListening(shouldSearch = false) {
+            state.isListening = false;
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            if (audioContext) audioContext.close();
+            
+            renderView();
+
+            if (shouldSearch && melodyBuffer.length > 5) {
+                // Simple heuristic: most frequent notes
+                const pureNotes = melodyBuffer.map(n => n.replace(/\d+/g, ''));
+                const pureMap = {};
+                pureNotes.forEach(n => pureMap[n] = (pureMap[n] || 0) + 1);
+                const topNotes = Object.entries(pureMap).sort((a,b) => b[1] - a[1]).slice(0, 3).map(n => n[0]).join(" ");
+                performSearch(`${topNotes} melody hits`);
+            }
+        }
+
+        function updatePitch() {
+            if (!analyser || !state.isListening) return;
+            const buffer = new Float32Array(2048);
+            analyser.getFloatTimeDomainData(buffer);
+            const ac = autoCorrelate(buffer, audioContext.sampleRate);
+            
+            if (ac !== -1 && ac > 50 && ac < 1200) {
+                state.detectedPitch = Math.round(ac);
+                const note = getNoteFromFrequency(ac);
+                state.detectedNote = note;
+                melodyBuffer.push(note);
+                // Update UI directly for performance
+                const noteEl = document.getElementById('detected-note');
+                const pitchEl = document.getElementById('detected-pitch');
+                if(noteEl) noteEl.textContent = note;
+                if(pitchEl) pitchEl.textContent = `${Math.round(ac)} Hz`;
+            }
+            animationFrameId = requestAnimationFrame(updatePitch);
+        }
+
+        function autoCorrelate(buffer, sampleRate) {
+            let SIZE = buffer.length;
+            let rms = 0;
+            for (let i = 0; i < SIZE; i++) rms += buffer[i] * buffer[i];
+            rms = Math.sqrt(rms / SIZE);
+            if (rms < 0.01) return -1;
+
+            let r1 = 0, r2 = SIZE - 1, thres = 0.2;
+            for (let i = 0; i < SIZE / 2; i++) { if (Math.abs(buffer[i]) < thres) { r1 = i; break; } }
+            for (let i = 1; i < SIZE / 2; i++) { if (Math.abs(buffer[SIZE - i]) < thres) { r2 = SIZE - i; break; } }
+            
+            const trimmedBuffer = buffer.slice(r1, r2);
+            const trimmedSize = trimmedBuffer.length;
+            let c = new Array(trimmedSize).fill(0);
+            for (let i = 0; i < trimmedSize; i++) {
+                for (let j = 0; j < trimmedSize - i; j++) c[i] += trimmedBuffer[j] * trimmedBuffer[j + i];
+            }
+            
+            let d = 0;
+            while (c[d] > c[d + 1]) d++;
+            let maxval = -1, maxpos = -1;
+            for (let i = d; i < trimmedSize; i++) {
+                if (c[i] > maxval) { maxval = c[i]; maxpos = i; }
+            }
+            return sampleRate / maxpos;
+        }
+
+        function getNoteFromFrequency(frequency) {
+            const noteNum = 12 * (Math.log(frequency / 440) / Math.log(2));
+            const roundedNote = Math.round(noteNum) + 69;
+            return NOTES[roundedNote % 12] + (Math.floor(roundedNote / 12) - 1);
+        }
+
+        // --- UI Rendering & Interactions ---
+        window.switchTab = (tab) => {
+            state.activeTab = tab;
+            state.isSidebarOpen = false;
+            renderView();
+            updateSidebarUI();
+        };
+
+        window.toggleSidebar = () => {
+            state.isSidebarOpen = !state.isSidebarOpen;
+            updateSidebarUI();
+        };
+
+        function updateSidebarUI() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobile-overlay');
+            
+            // Explicitly manage theme classes for sidebar to avoid regex issues
+            if (state.darkMode) {
+                sidebar.classList.remove('bg-white', 'border-slate-200');
+                sidebar.classList.add('bg-slate-900', 'border-slate-800');
+            } else {
+                sidebar.classList.remove('bg-slate-900', 'border-slate-800');
+                sidebar.classList.add('bg-white', 'border-slate-200');
+            }
+
+            if (state.isSidebarOpen) {
+                sidebar.classList.remove('-translate-x-full');
+                overlay.classList.remove('hidden');
+                setTimeout(() => overlay.classList.remove('opacity-0'), 10);
+            } else {
+                sidebar.classList.add('-translate-x-full');
+                overlay.classList.add('opacity-0');
+                setTimeout(() => overlay.classList.add('hidden'), 300);
+            }
+            
+            renderNav();
+        }
+
+        window.toggleDarkMode = () => {
+            state.darkMode = !state.darkMode;
+            applyTheme();
+        };
+
+        function applyTheme() {
+            const body = document.body;
+            const sidebar = document.getElementById('sidebar');
+            const header = document.getElementById('main-header');
+            const input = document.getElementById('global-search-input');
+            const playerBar = document.getElementById('player-bar');
+            
+            if (state.darkMode) {
+                body.classList.replace('bg-slate-50', 'bg-slate-950');
+                body.classList.replace('text-slate-900', 'text-slate-100');
+                
+                header.classList.replace('bg-white/80', 'bg-slate-950/80');
+                header.classList.replace('border-slate-200', 'border-slate-800');
+                
+                input.classList.replace('bg-slate-100', 'bg-slate-900');
+                input.classList.replace('text-slate-900', 'text-white');
+                
+                playerBar.classList.replace('bg-white', 'bg-slate-900');
+                playerBar.classList.replace('border-slate-100', 'border-slate-800');
+                playerBar.classList.replace('text-slate-900', 'text-slate-100');
+                
+                document.getElementById('theme-toggle').innerHTML = `<i data-lucide="sun" class="w-5 h-5 text-yellow-400"></i>`;
+            } else {
+                body.classList.replace('bg-slate-950', 'bg-slate-50');
+                body.classList.replace('text-slate-100', 'text-slate-900');
+                
+                header.classList.replace('bg-slate-950/80', 'bg-white/80');
+                header.classList.replace('border-slate-800', 'border-slate-200');
+                
+                input.classList.replace('bg-slate-900', 'bg-slate-100');
+                input.classList.replace('text-white', 'text-slate-900');
+                
+                playerBar.classList.replace('bg-slate-900', 'bg-white');
+                playerBar.classList.replace('border-slate-800', 'border-slate-100');
+                playerBar.classList.replace('text-slate-100', 'text-slate-900');
+                
+                document.getElementById('theme-toggle').innerHTML = `<i data-lucide="moon" class="w-5 h-5"></i>`;
+            }
+            updateSidebarUI();
+            lucide.createIcons();
+            renderView(); // Re-render to update inner items
+        }
+
+        // --- View Renderers ---
+        function renderNav() {
+            const container = document.getElementById('nav-container');
+            const tabs = [
+                { id: 'search', icon: 'search', label: 'Search' },
+                { id: 'newreleases', icon: 'calendar-days', label: 'Hot Releases' },
+                { id: 'foryou', icon: 'sparkles', label: 'Ignited For You' },
+                { id: 'listen', icon: 'mic', label: 'Melody Ignite' },
+                { id: 'history', icon: 'history', label: 'My Burn Log' }
+            ];
+
+            container.innerHTML = tabs.map(t => {
+                const isActive = state.activeTab === t.id;
+                const activeClass = isActive ? 'bg-orange-500 text-white shadow-sm' : (state.darkMode ? 'text-slate-400 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-100');
+                return `
+                    <button onclick="switchTab('${t.id}')" class="flex items-center space-x-3 w-full p-2.5 rounded-lg transition-all ${activeClass}">
+                        <i data-lucide="${t.icon}" class="w-[18px]"></i> <span class="text-sm font-medium">${t.label}</span>
+                    </button>
+                `;
+            }).join('');
+            
+            const settingsBtn = document.getElementById('nav-settings');
+            const settingsActive = state.activeTab === 'settings';
+            settingsBtn.className = `flex items-center space-x-3 w-full p-2.5 rounded-lg transition-all mb-4 ${settingsActive ? 'bg-orange-500 text-white' : (state.darkMode ? 'text-slate-400 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-100')}`;
+            
+            lucide.createIcons();
+        }
+
+        function renderView() {
+            const container = document.getElementById('content-area');
+            const themeBorder = state.darkMode ? 'border-slate-800' : 'border-slate-200';
+            const themeCardBg = state.darkMode ? 'bg-slate-900' : 'bg-white';
+            const themeTextMuted = state.darkMode ? 'text-slate-400' : 'text-slate-500';
+
+            // --- LISTEN TAB ---
+            if (state.activeTab === 'listen') {
+                container.innerHTML = `
+                    <div class="h-full flex flex-col items-center justify-center max-w-lg mx-auto text-center">
+                        <div class="mb-12">
+                            <h2 class="text-3xl font-bold mb-2 tracking-tight">Melody Ignite</h2>
+                            <p class="text-sm ${themeTextMuted}">Hum your tune to ignite the search engine.</p>
+                        </div>
+                        <div class="relative mb-14">
+                            ${state.isListening ? '<div class="absolute -inset-10 flex items-center justify-center"><div class="w-56 h-56 bg-orange-500/10 rounded-full animate-ping-slow"></div></div>' : ''}
+                            <button
+                                onclick="toggleListening()"
+                                class="relative z-10 w-40 h-40 rounded-full flex flex-col items-center justify-center transition-all shadow-xl active:scale-95 ${state.isListening ? 'bg-orange-500 text-white' : (state.darkMode ? 'bg-slate-800 text-orange-500 border-slate-700' : 'bg-white text-orange-500 border-2 border-orange-50')}"
+                            >
+                                <i data-lucide="${state.isListening ? 'activity' : 'flame'}" class="w-12 h-12 ${state.isListening ? 'animate-bounce' : ''}"></i>
+                                <span class="mt-4 text-[10px] font-bold uppercase tracking-widest">
+                                    ${state.isListening ? 'Listening...' : 'Ignite Mic'}
+                                </span>
+                            </button>
+                        </div>
+                        ${state.isListening ? `
+                            <div class="space-y-4 w-full">
+                                <div class="flex flex-col items-center">
+                                    <span id="detected-note" class="text-4xl font-bold text-orange-500 mb-1">${state.detectedNote}</span>
+                                    <span id="detected-pitch" class="text-[10px] font-mono uppercase tracking-widest ${themeTextMuted}">${state.detectedPitch} Hz</span>
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+
+            // --- NEW RELEASES ---
+            else if (state.activeTab === 'newreleases') {
+                if (state.newReleases.length === 0) {
+                     container.innerHTML = document.getElementById('loader-template').innerHTML.replace('Loading...', 'Refreshing list...');
+                } else {
+                    const grid = state.newReleases.map(song => {
+                        const isCurrent = state.currentTrack?.id === song.id;
+                        return `
+                        <div class="group flex flex-col">
+                            <div onclick="playTrack('${encodeURIComponent(JSON.stringify(song))}')" class="relative aspect-square rounded-2xl overflow-hidden mb-2.5 shadow-sm group-hover:shadow-md transition-all duration-200 cursor-pointer">
+                                <img src="${song.artwork}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" alt="" />
+                                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <div class="bg-white p-3 rounded-full text-orange-600 scale-90 group-hover:scale-100 transition-transform">
+                                        <i data-lucide="${isCurrent && state.isPlaying ? 'pause' : 'play'}" class="w-5 h-5 fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-start">
+                                <div class="min-w-0 pr-2">
+                                    <p class="font-semibold text-[11px] md:text-xs truncate group-hover:text-orange-500 transition-colors">${song.title}</p>
+                                    <p class="text-[10px] truncate ${themeTextMuted}">${song.artist}</p>
+                                </div>
+                            </div>
+                        </div>
+                        `;
+                    }).join('');
+
+                    container.innerHTML = `
+                        <div class="max-w-5xl mx-auto">
+                             <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center space-x-2.5">
+                                    <i data-lucide="flame" class="text-orange-500 w-[22px] fill-current"></i>
+                                    <h2 class="text-xl font-bold tracking-tight">Hot Releases</h2>
+                                </div>
+                                <button onclick="fetchNewReleases()" class="p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors">
+                                    <i data-lucide="refresh-cw" class="w-[18px]"></i>
+                                </button>
+                            </div>
+                            <p class="mb-8 text-sm ${themeTextMuted}">The latest tracks catching fire right now.</p>
+                            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 md:gap-5 animate-in fade-in duration-500">
+                                ${grid}
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            // --- SEARCH RESULTS ---
+            else if (state.activeTab === 'search') {
+                // If loading, HTML is already set by performSearch. Just checking results here.
+                if (state.searchResults.length > 0) {
+                    const list = state.searchResults.map(song => {
+                        const isCurrent = state.currentTrack?.id === song.id;
+                        const borderClass = isCurrent ? 'ring-1 ring-orange-500 border-orange-500' : themeBorder;
+                        return `
+                        <div class="group flex items-center p-2.5 rounded-xl border transition-all cursor-pointer ${themeCardBg} ${borderClass} hover:border-orange-500/30">
+                            <div onclick="playTrack('${encodeURIComponent(JSON.stringify(song))}')" class="flex-1 flex items-center min-w-0">
+                                <div class="w-11 h-11 rounded-lg overflow-hidden mr-4 flex-shrink-0 bg-slate-800">
+                                    <img src="${song.artwork}" class="w-full h-full object-cover" alt="" />
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-semibold text-sm truncate">${song.title}</p>
+                                    <p class="text-xs truncate ${themeTextMuted}">${song.artist}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-2 px-2">
+                                <a href="https://www.youtube.com/results?search_query=${encodeURIComponent(song.artist + ' ' + song.title)}" target="_blank" class="p-2 text-slate-400 hover:text-red-600 transition-colors">
+                                    <i data-lucide="youtube" class="w-[18px]"></i>
+                                </a>
+                            </div>
+                        </div>`;
+                    }).join('');
+
+                    container.innerHTML = `
+                        <div class="max-w-5xl mx-auto">
+                            <h2 class="text-xl font-bold mb-4 tracking-tight">Search Results</h2>
+                            <div class="space-y-1.5">${list}</div>
+                        </div>
+                    `;
+                } else if (!container.innerHTML.includes('Igniting')) {
+                    container.innerHTML = `
+                        <div class="h-full flex flex-col items-center justify-center text-center py-24 opacity-30">
+                            <i data-lucide="flame" class="w-12 h-12 mb-4"></i>
+                            <p class="text-base font-medium">Search for Fire tracks</p>
+                        </div>
+                    `;
+                }
+            }
+
+            // --- FOR YOU ---
+            else if (state.activeTab === 'foryou') {
+                const list = state.forYouSongs.map((song, idx) => {
+                    const isCurrent = state.currentTrack?.id === song.id;
+                    const cardClass = isCurrent 
+                        ? 'bg-orange-500 text-white border-orange-500 shadow-md' 
+                        : `${themeCardBg} ${state.darkMode ? 'border-slate-800' : 'border-slate-100'}`;
+                    const artistClass = isCurrent ? 'text-orange-100' : 'text-slate-400';
+                    const playBtnClass = isCurrent ? 'bg-white/20 text-white' : 'bg-orange-50 text-orange-600';
+                    const linkClass = isCurrent ? 'text-white' : 'text-slate-400 hover:text-red-500';
+
+                    return `
+                    <div class="flex items-center p-3 rounded-2xl transition-all border group ${cardClass}">
+                        <div onclick="playTrack('${encodeURIComponent(JSON.stringify(song))}')" class="flex items-center flex-1 cursor-pointer min-w-0">
+                            <div class="text-lg font-bold opacity-20 mr-4 w-5">${idx + 1}</div>
+                            <img src="${song.artwork}" class="w-14 h-14 rounded-xl shadow-sm mr-4 object-cover" alt="" />
+                            <div class="flex-1 min-w-0">
+                                <p class="font-semibold text-sm truncate">${song.title}</p>
+                                <p class="text-xs truncate ${artistClass}">${song.artist}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-3 ml-4">
+                            <a href="https://www.youtube.com/results?search_query=${encodeURIComponent(song.artist + ' ' + song.title)}" target="_blank" class="${linkClass}">
+                                <i data-lucide="youtube" class="w-[18px]"></i>
+                            </a>
+                            <div onclick="playTrack('${encodeURIComponent(JSON.stringify(song))}')" class="p-2 rounded-full cursor-pointer ${playBtnClass}">
+                                <i data-lucide="${isCurrent && state.isPlaying ? 'pause' : 'play'}" class="w-4 h-4 fill-current ml-0.5"></i>
+                            </div>
+                        </div>
+                    </div>`;
+                }).join('');
+
+                container.innerHTML = `
+                    <div class="max-w-5xl mx-auto">
+                        <div class="flex items-center space-x-2.5 mb-2">
+                            <i data-lucide="sparkles" class="text-orange-500 w-[22px] fill-current"></i>
+                            <h2 class="text-xl font-bold tracking-tight">Ignited For You</h2>
+                        </div>
+                        <p class="mb-8 text-sm ${themeTextMuted}">Hand-picked fire tunes based on your burn log.</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">${list}</div>
+                    </div>
+                `;
+            }
+
+            // --- HISTORY ---
+            else if (state.activeTab === 'history') {
+                if (state.history.length === 0) {
+                    container.innerHTML = `
+                        <div class="max-w-3xl mx-auto">
+                             <div class="flex items-center justify-between mb-6">
+                                <h2 class="text-xl font-bold tracking-tight">My Burn Log</h2>
+                             </div>
+                             <div class="py-24 text-center text-slate-400">
+                                <i data-lucide="flame" class="w-10 h-10 mx-auto mb-4 opacity-10"></i>
+                                <p class="text-sm">Your log is empty. Go find some fire.</p>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    const list = state.history.map(item => {
+                        return `
+                        <div class="flex items-center p-3 rounded-xl border transition-all cursor-pointer group ${themeCardBg} ${themeBorder} hover:border-orange-500/20">
+                            <div onclick="playTrack('${encodeURIComponent(JSON.stringify(item))}')" class="flex-1 flex items-center min-w-0">
+                                <div class="w-10 h-10 rounded-lg overflow-hidden mr-4 bg-slate-800">
+                                    <img src="${item.artwork}" class="w-full h-full object-cover" alt="" />
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-semibold text-sm truncate">${item.title}</p>
+                                    <p class="text-xs truncate ${themeTextMuted}">${item.artist}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <a href="https://www.youtube.com/results?search_query=${encodeURIComponent(item.artist + ' ' + item.title)}" target="_blank" class="p-2 text-slate-400 hover:text-red-600">
+                                    <i data-lucide="youtube" class="w-[18px]"></i>
+                                </a>
+                                <button onclick="window.deleteHistoryItem('${item.docId}')" class="p-2 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
+                                    <i data-lucide="x" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>`;
+                    }).join('');
+
+                    container.innerHTML = `
+                        <div class="max-w-3xl mx-auto">
+                            <div class="flex items-center justify-between mb-6">
+                                <h2 class="text-xl font-bold tracking-tight">My Burn Log</h2>
+                                <button onclick="window.clearHistory()" class="flex items-center space-x-2 text-[11px] font-bold text-red-500 hover:text-red-600 transition-colors uppercase tracking-widest">
+                                    <i data-lucide="trash-2" class="w-3 h-3"></i> <span>Clear Log</span>
+                                </button>
+                            </div>
+                            <div class="grid gap-2">${list}</div>
+                        </div>
+                    `;
+                }
+            }
+
+            // --- SETTINGS ---
+            else if (state.activeTab === 'settings') {
+                container.innerHTML = `
+                    <div class="max-w-2xl mx-auto">
+                        <h2 class="text-xl font-bold mb-6 tracking-tight">Settings</h2>
+                        <div class="rounded-2xl p-6 space-y-6 ${themeCardBg} border ${themeBorder} shadow-sm">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="font-semibold text-sm">Dark Mode</p>
+                                    <p class="text-xs ${themeTextMuted}">Cool down the interface for night viewing.</p>
+                                </div>
+                                <button onclick="toggleDarkMode()" class="w-12 h-6.5 rounded-full relative transition-colors h-6 ${state.darkMode ? 'bg-orange-500' : 'bg-slate-200'}">
+                                    <div class="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-all ${state.darkMode ? 'left-6.5 translate-x-1' : 'left-0.5'}"></div>
+                                </button>
+                            </div>
+                            <div class="h-px ${state.darkMode ? 'bg-slate-800' : 'bg-slate-100'}"></div>
+                             <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="font-semibold text-sm text-red-500">Wipe Log</p>
+                                    <p class="text-xs ${themeTextMuted}">Permanently remove all logs.</p>
+                                </div>
+                                <button onclick="window.clearHistory()" class="px-3 py-1.5 rounded-lg font-bold text-[11px] uppercase tracking-wider transition-all bg-red-50 text-red-600 hover:bg-red-600 hover:text-white border border-red-100">
+                                    Clear History
+                                </button>
+                            </div>
+                             <div class="h-px ${state.darkMode ? 'bg-slate-800' : 'bg-slate-100'}"></div>
+                            <div>
+                                <p class="font-semibold text-sm mb-1">About Fire AI</p>
+                                <p class="text-xs leading-relaxed ${themeTextMuted}">Fire AI Music Engine v3.1.2<br/>A high-performance melody discovery engine.</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            lucide.createIcons();
+        }
+
+        // --- History Actions ---
+        window.deleteHistoryItem = async (docId) => {
+            if (!state.user || !docId) return;
+            try {
+                await deleteDoc(doc(db, 'artifacts', appId, 'users', state.user.uid, 'history', docId));
+            } catch (err) { console.error(err); }
+        };
+
+        window.clearHistory = async () => {
+            if (!state.user) return;
+            if (!confirm('Are you sure you want to burn your entire history?')) return;
+            try {
+                const q = collection(db, 'artifacts', appId, 'users', state.user.uid, 'history');
+                const snapshot = await getDocs(q);
+                const batch = writeBatch(db);
+                snapshot.docs.forEach((d) => batch.delete(d.ref));
+                await batch.commit();
+            } catch (err) { console.error(err); }
+        };
+
+        // --- Initial Load ---
+        renderNav();
+        fetchNewReleases();
+        
+        // Search Input Listeners
+        const searchInput = document.getElementById('global-search-input');
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') performSearch(e.target.value);
+        });
+
+    </script>
+</body>
+</html>
